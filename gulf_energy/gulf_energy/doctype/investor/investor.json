@@ -1,0 +1,213 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2025-08-16 11:05:08.548015",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "investor_name",
+  "invested_currency",
+  "invested_amount",
+  "exchange_rate",
+  "company_currency",
+  "invested_amount_company_currency",
+  "invested_project",
+  "project_name",
+  "column_break_xugd",
+  "naming_series",
+  "investe_date",
+  "dividend_return_date",
+  "dividend",
+  "eligable_dividend_amount_in_company_currency",
+  "invested_company",
+  "country",
+  "amended_from",
+  "investor_account",
+  "amount_received_account",
+  "journal_entry",
+  "section_break_owgx",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "investor_name",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Investor Name / Company",
+   "options": "Investor Party",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_xugd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invested_company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Invested Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "investe_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Investe Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invested_currency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Invested Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invested_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Invested Amount",
+   "options": "invested_currency"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Country",
+   "options": "Country",
+   "reqd": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "INVT.YY.###"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Investor",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "invested_company.default_currency",
+   "fieldname": "company_currency",
+   "fieldtype": "Data",
+   "label": "Company Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate",
+   "precision": "9"
+  },
+  {
+   "fieldname": "invested_amount_company_currency",
+   "fieldtype": "Currency",
+   "label": "Invested Amount Company Currency",
+   "options": "company_currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_received_account",
+   "fieldtype": "Link",
+   "label": "Amount Received Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "investor_account",
+   "fieldtype": "Link",
+   "label": "Investor Account",
+   "options": "Account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_owgx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "invested_project",
+   "fieldtype": "Link",
+   "label": "Invested Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "invested_project.project_name",
+   "fieldname": "project_name",
+   "fieldtype": "Data",
+   "label": "Project Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dividend_return_date",
+   "fieldtype": "Date",
+   "label": "Dividend Return Date"
+  },
+  {
+   "fieldname": "eligable_dividend_amount_in_company_currency",
+   "fieldtype": "Currency",
+   "label": "Eligable Dividend Amount In Company Currency",
+   "options": "company_currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dividend",
+   "fieldtype": "Percent",
+   "label": "Dividend %"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-08-16 12:57:36.886825",
+ "modified_by": "Administrator",
+ "module": "Gulf Energy",
+ "name": "Investor",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

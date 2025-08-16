@@ -1,0 +1,101 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-08-16 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "investor_name",
+  "investor_id",
+  "investor_account",
+  "column_break_cvbn",
+  "invested_amount",
+  "dividend_percent",
+  "dividend_return_date",
+  "eligible_dividend_amount",
+  "investor_record"
+ ],
+ "fields": [
+  {
+   "fieldname": "investor_name",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Investor Name",
+   "options": "Investor Party",
+   "reqd": 1,
+   "width": "150"
+  },
+  {
+   "fieldname": "investor_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Investor ID",
+   "reqd": 1,
+   "width": "120"
+  },
+  {
+   "fieldname": "investor_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Investor Account",
+   "options": "Account",
+   "reqd": 1,
+   "width": "200"
+  },
+  {
+   "fieldname": "column_break_cvbn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invested_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Invested Amount",
+   "reqd": 1,
+   "width": "120"
+  },
+  {
+   "fieldname": "dividend_percent",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Dividend %",
+   "reqd": 1,
+   "width": "100"
+  },
+  {
+   "fieldname": "dividend_return_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Dividend Return Date",
+   "reqd": 1,
+   "width": "120"
+  },
+  {
+   "fieldname": "eligible_dividend_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Eligible Dividend Amount",
+   "reqd": 1,
+   "width": "150"
+  },
+  {
+   "fieldname": "investor_record",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Investor Record",
+   "options": "Investor"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-08-16 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gulf Energy",
+ "name": "Investor Closing Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

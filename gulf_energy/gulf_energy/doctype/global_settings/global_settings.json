@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-08-16 13:14:06.266618",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "investor_dividend_expense",
+  "column_break_gicy"
+ ],
+ "fields": [
+  {
+   "fieldname": "investor_dividend_expense",
+   "fieldtype": "Link",
+   "label": "Investor Dividend Expense",
+   "options": "Account"
+  },
+  {
+   "fieldname": "column_break_gicy",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-08-16 14:03:11.399275",
+ "modified_by": "Administrator",
+ "module": "Gulf Energy",
+ "name": "Global Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
