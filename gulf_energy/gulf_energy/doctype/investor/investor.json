@@ -21,6 +21,7 @@
   "dividend",
   "eligable_dividend_amount_in_company_currency",
   "invested_company",
+  "abbr",
   "country",
   "amended_from",
   "investor_account",
@@ -114,6 +115,7 @@
    "precision": "9"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "invested_amount_company_currency",
    "fieldtype": "Currency",
    "label": "Invested Amount Company Currency",
@@ -170,6 +172,7 @@
    "label": "Dividend Return Date"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "eligable_dividend_amount_in_company_currency",
    "fieldtype": "Currency",
    "label": "Eligable Dividend Amount In Company Currency",
@@ -180,13 +183,20 @@
    "fieldname": "dividend",
    "fieldtype": "Percent",
    "label": "Dividend %"
+  },
+  {
+   "fetch_from": "invested_company.abbr",
+   "fieldname": "abbr",
+   "fieldtype": "Data",
+   "label": "Abbr",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-16 12:57:36.886825",
+ "modified": "2025-08-20 19:49:04.248671",
  "modified_by": "Administrator",
  "module": "Gulf Energy",
  "name": "Investor",
