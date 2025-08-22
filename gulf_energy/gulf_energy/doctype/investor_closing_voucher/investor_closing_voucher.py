@@ -10,6 +10,8 @@ from frappe.utils import flt, today
 class InvestorClosingVoucher(Document):
 	def validate(self):
 		self.validate_required_fields()
+		self.validate_investor_company_match()
+		self.validate_currency_consistency()
 		self.set_dividend_expense_account()
 		self.calculate_totals()
 	
@@ -34,20 +36,101 @@ class InvestorClosingVoucher(Document):
 				frappe.throw(_("Duplicate Investor ID {0} found in the voucher. Each investor can only be processed once per voucher.").format(investor.investor_id))
 			investor_ids.append(investor.investor_id)
 	
-	def set_dividend_expense_account(self):
-		"""Set dividend expense account from Global Settings"""
-		if self.company:
-			# Get dividend expense account from Global Settings
-			global_settings = frappe.get_single("Global Settings")
-			if global_settings and global_settings.investor_dividend_expense:
-				# Validate account belongs to the company
-				account_company = frappe.get_value("Account", global_settings.investor_dividend_expense, "company")
-				if account_company == self.company:
-					self.dividend_expense_account = global_settings.investor_dividend_expense
+	def validate_investor_company_match(self):
+		"""Validate that all investors belong to the same company and project as the voucher"""
+		if not self.company or not self.project or not self.investors:
+			return
+		
+		for investor in self.investors:
+			if investor.investor_record:
+				# Get the invested_company and invested_project from the Investor record
+				investor_data = frappe.get_value("Investor", investor.investor_record, 
+					["invested_company", "invested_project"], as_dict=True)
+				
+				if investor_data:
+					if investor_data.invested_company != self.company:
+						frappe.throw(_("Investor {0} belongs to company {1}, but this voucher is for company {2}. Please remove this investor or change the voucher company.").format(
+							investor.investor_name, investor_data.invested_company, self.company
+						))
+					
+					if investor_data.invested_project != self.project:
+						frappe.throw(_("Investor {0} belongs to project {1}, but this voucher is for project {2}. Please remove this investor or change the voucher project.").format(
+							investor.investor_name, investor_data.invested_project, self.project
+						))
 				else:
-					frappe.throw(_("Dividend Expense Account in Global Settings does not belong to company {0}").format(self.company))
+					frappe.throw(_("Investor record {0} not found or missing required data.").format(investor.investor_record))
+		
+		# Success message if all validations pass
+		if self.investors:
+			frappe.msgprint(_("✓ Validated {0} investors - all belong to company {1} and project {2}").format(
+				len(self.investors), self.company, self.project
+			), indicator="green")
+	
+	def validate_currency_consistency(self):
+		"""Validate that all amounts are in company currency"""
+		if not self.company:
+			return
+			
+		# Get company currency
+		company_currency = frappe.get_value("Company", self.company, "default_currency")
+		
+		if not company_currency:
+			frappe.throw(_("Company {0} does not have a default currency set").format(self.company))
+		
+		# Set company currency if not already set
+		if not self.company_currency:
+			self.company_currency = company_currency
+		elif self.company_currency != company_currency:
+			frappe.throw(_("Voucher currency {0} does not match company currency {1}").format(
+				self.company_currency, company_currency
+			))
+		
+		# Validate investor amounts are in company currency
+		for investor in self.investors:
+			if investor.investor_record:
+				investor_currency = frappe.get_value("Investor", investor.investor_record, "company_currency")
+				if investor_currency and investor_currency != company_currency:
+					frappe.throw(_("Investor {0} amounts are in {1} but voucher requires {2}").format(
+						investor.investor_name, investor_currency, company_currency
+					))
+	
+	@frappe.whitelist()
+	def refresh_currency_display(self):
+		"""Force refresh currency display for all amounts"""
+		if self.company:
+			# Get and set company currency
+			company_currency = frappe.get_value("Company", self.company, "default_currency")
+			if company_currency:
+				self.company_currency = company_currency
+				self.save()
+				return {"status": "success", "currency": company_currency}
+		return {"status": "error", "message": "Unable to refresh currency"}
+	
+	def set_dividend_expense_account(self):
+		"""Set dividend expense account from Global Settings based on company"""
+		if self.company:
+			# Get dividend expense account from Global Settings table
+			global_settings = frappe.get_single("Global Settings")
+			if global_settings and global_settings.investor_dividend_details:
+				# Find the matching company in the table
+				dividend_account = None
+				for row in global_settings.investor_dividend_details:
+					if row.company == self.company and row.investor_dividend_expense:
+						dividend_account = row.investor_dividend_expense
+						break
+				
+				if dividend_account:
+					# Validate account belongs to the company (double check)
+					account_company = frappe.get_value("Account", dividend_account, "company")
+					if account_company == self.company:
+						self.dividend_expense_account = dividend_account
+						frappe.msgprint(_("Using dividend expense account: {0} for company {1}").format(dividend_account, self.company), indicator="green")
+					else:
+						frappe.throw(_("Dividend Expense Account {0} does not belong to company {1}").format(dividend_account, self.company))
+				else:
+					frappe.throw(_("Please set Investor Dividend Expense Account for company {0} in Global Settings").format(self.company))
 			else:
-				frappe.throw(_("Please set Investor Dividend Expense Account in Global Settings"))
+				frappe.throw(_("Please configure Investor Dividend Details in Global Settings"))
 	
 	def calculate_totals(self):
 		"""Calculate total investment, dividend amount, and investor count"""
@@ -107,18 +190,23 @@ class InvestorClosingVoucher(Document):
 		if not investor.eligible_dividend_amount or investor.eligible_dividend_amount <= 0:
 			frappe.throw(_("Invalid dividend amount for investor {0}").format(investor.investor_name))
 		
+		# Get company currency to ensure consistency
+		company_currency = frappe.get_value("Company", self.company, "default_currency")
+		
 		# Prepare journal entry accounts
 		accounts = [
 			{
 				"account": self.dividend_expense_account,
 				"debit_in_account_currency": investor.eligible_dividend_amount,
 				"debit": investor.eligible_dividend_amount,
+				"account_currency": company_currency,
 				"project": self.project
 			},
 			{
 				"account": investor.investor_account,
 				"credit_in_account_currency": investor.eligible_dividend_amount,
 				"credit": investor.eligible_dividend_amount,
+				"account_currency": company_currency,
 				"project": self.project
 			}
 		]
@@ -139,7 +227,10 @@ class InvestorClosingVoucher(Document):
 			"project": self.project,
 			"accounts": accounts,
 			"reference_type": "Investor Closing Voucher",
-			"reference_name": self.name
+			"reference_name": self.name,
+			"multi_currency": 0,  # Single currency transaction
+			"total_debit": investor.eligible_dividend_amount,
+			"total_credit": investor.eligible_dividend_amount
 		})
 		
 		journal_entry.insert(ignore_permissions=True)
@@ -210,7 +301,11 @@ class InvestorClosingVoucher(Document):
 def get_project_investors(project, company):
 	"""Get all investors for a specific project (excluding already processed ones)"""
 	if not project or not company:
+		frappe.msgprint(_("Project and Company are required"), indicator="red")
 		return []
+	
+	# Debug: Log the filters being used
+	frappe.logger().info(f"Getting investors for project: {project}, company: {company}")
 	
 	# Get already processed investors from submitted Investor Closing Vouchers
 	processed_investors = frappe.get_all("Investor Closing Detail", 
@@ -237,6 +332,9 @@ def get_project_investors(project, company):
 	if processed_investor_ids:
 		filters["name"] = ["not in", processed_investor_ids]
 	
+	# Debug: Log filters
+	frappe.logger().info(f"Investor filters: {filters}")
+	
 	# Get all submitted investor records for the project (excluding processed ones)
 	investors = frappe.get_all("Investor", 
 		filters=filters,
@@ -244,24 +342,64 @@ def get_project_investors(project, company):
 			"name", "investor_name", "investor_account", 
 			"invested_amount_company_currency", "dividend",
 			"dividend_return_date", "eligable_dividend_amount_in_company_currency",
-			"company_currency"
+			"company_currency", "invested_company", "invested_project"
 		]
 	)
 	
+	# Debug: Log found investors
+	frappe.logger().info(f"Found {len(investors)} investors matching filters")
+	
 	investor_list = []
 	for inv in investors:
+		# Double-check company and project match (additional validation)
+		if inv.invested_company != company:
+			frappe.logger().warning(f"Skipping investor {inv.name}: company mismatch - {inv.invested_company} vs {company}")
+			continue
+		
+		if inv.invested_project != project:
+			frappe.logger().warning(f"Skipping investor {inv.name}: project mismatch - {inv.invested_project} vs {project}")
+			continue
+			
 		investor_list.append({
 			"investor_name": inv.investor_name,
 			"investor_id": inv.name,  # This is the Investor ID
 			"investor_account": inv.investor_account,
-			"invested_amount": inv.invested_amount_company_currency,
+			"invested_amount": inv.invested_amount_company_currency,  # Company currency amount
 			"dividend_percent": inv.dividend,
 			"dividend_return_date": inv.dividend_return_date,
-			"eligible_dividend_amount": inv.eligable_dividend_amount_in_company_currency,
-			"investor_record": inv.name
+			"eligible_dividend_amount": inv.eligable_dividend_amount_in_company_currency,  # Company currency amount
+			"investor_record": inv.name,
+			"currency": inv.company_currency  # Include currency for reference
 		})
 	
+	# Final debug message
+	if len(investor_list) != len(investors):
+		frappe.msgprint(_("Warning: Some investors were filtered out due to company/project mismatch. Check error logs for details."), indicator="orange")
+	
 	return investor_list
+
+
+@frappe.whitelist()
+def debug_investor_data(project=None, company=None):
+	"""Debug function to check investor data for troubleshooting"""
+	filters = {}
+	if project:
+		filters["invested_project"] = project
+	if company:
+		filters["invested_company"] = company
+	
+	investors = frappe.get_all("Investor",
+		filters=filters,
+		fields=["name", "investor_name", "invested_company", "invested_project", "docstatus"]
+	)
+	
+	result = {
+		"filters_used": filters,
+		"total_found": len(investors),
+		"investors": investors
+	}
+	
+	return result
 
 
 @frappe.whitelist()

@@ -12,6 +12,25 @@ frappe.ui.form.on("Investor Closing Voucher", {
 			frm.set_value('status', 'Cancelled');
 		}
 		
+		// Ensure company currency is set
+		ensure_company_currency(frm);
+		
+		// Force currency override for child table
+		if (frm.doc.company_currency && frm.doc.investors) {
+			frappe.boot.sysdefaults.currency = frm.doc.company_currency;
+			frm.doc.investors.forEach(function(row) {
+				if (row.invested_amount) {
+					row.invested_amount_currency = frm.doc.company_currency;
+				}
+				if (row.eligible_dividend_amount) {
+					row.eligible_dividend_amount_currency = frm.doc.company_currency;
+				}
+			});
+		}
+		
+		// Ensure Journal Entries table is visible in its tab
+		frm.toggle_display('journal_entries', true);
+		
 		// Set filters for project
 		set_project_filter(frm);
 		
@@ -23,6 +42,18 @@ frappe.ui.form.on("Investor Closing Voucher", {
 			frm.add_custom_button(__('Force Complete Project'), function() {
 				force_complete_project(frm);
 			}, __('Actions'));
+		}
+		
+		// Add currency refresh button for draft documents
+		if (frm.doc.docstatus === 0 && frm.doc.company) {
+			frm.add_custom_button(__('Refresh Currency'), function() {
+				refresh_currency_display(frm);
+			}, __('Actions'));
+		}
+		
+		// Refresh investors table to ensure currency displays correctly
+		if (frm.doc.investors) {
+			frm.refresh_field('investors');
 		}
 	},
 	
@@ -54,6 +85,27 @@ frappe.ui.form.on("Investor Closing Voucher", {
 		frm.clear_table('investors');
 		frm.refresh_field('investors');
 		
+		// Set company currency
+		if (frm.doc.company) {
+			frappe.db.get_value('Company', frm.doc.company, 'default_currency', (r) => {
+				if (r && r.default_currency) {
+					frm.set_value('company_currency', r.default_currency);
+					frm.refresh_field('company_currency');
+					
+					// Force refresh all currency fields and clear any system defaults
+					frm.refresh_fields();
+					
+					// Override system default currency temporarily
+					frappe.boot.sysdefaults.currency = r.default_currency;
+					
+					frappe.show_alert({
+						message: __('Company currency set to {0}', [r.default_currency]),
+						indicator: 'green'
+					});
+				}
+			});
+		}
+		
 		// Set project filter
 		set_project_filter(frm);
 		
@@ -81,8 +133,103 @@ frappe.ui.form.on("Investor Closing Voucher", {
 			});
 			frm.refresh_field('investors');
 		}
+	},
+	
+	company_currency(frm) {
+		// Force refresh investors table when currency changes
+		if (frm.doc.investors) {
+			frm.refresh_field('investors');
+			
+			// Also trigger a full form refresh to ensure currency displays correctly
+			setTimeout(function() {
+				frm.refresh_fields();
+			}, 100);
+		}
 	}
 });
+
+function refresh_currency_display(frm) {
+	if (!frm.doc.company) {
+		frappe.msgprint(__('Please select a company first'));
+		return;
+	}
+	
+	frappe.call({
+		method: "refresh_currency_display",
+		doc: frm.doc,
+		callback: function(r) {
+			if (r.message && r.message.status === "success") {
+				// Force set the company currency before reload
+				frm.set_value('company_currency', r.message.currency);
+				
+				// Override currency display for all child table rows
+				if (frm.doc.investors) {
+					frm.doc.investors.forEach(function(row) {
+						// Force the currency display to use company currency
+						if (row.invested_amount) {
+							row.invested_amount_currency = r.message.currency;
+						}
+						if (row.eligible_dividend_amount) {
+							row.eligible_dividend_amount_currency = r.message.currency;
+						}
+					});
+				}
+				
+				frm.reload_doc();
+				frappe.show_alert({
+					message: __('Currency refreshed to {0}', [r.message.currency]),
+					indicator: 'green'
+				});
+			} else {
+				frappe.msgprint(__('Failed to refresh currency'));
+			}
+		}
+	});
+}
+
+function ensure_company_currency(frm) {
+	// Ensure company currency is set when form loads
+	if (frm.doc.company && !frm.doc.company_currency) {
+		frappe.db.get_value('Company', frm.doc.company, 'default_currency', (r) => {
+			if (r && r.default_currency) {
+				frm.set_value('company_currency', r.default_currency);
+				frm.refresh_field('company_currency');
+				
+				// Force refresh the investors table to pick up new currency
+				if (frm.doc.investors) {
+					frm.refresh_field('investors');
+				}
+			}
+		});
+	} else if (frm.doc.company && frm.doc.company_currency) {
+		// Even if currency is set, force refresh the display
+		frappe.db.get_value('Company', frm.doc.company, 'default_currency', (r) => {
+			if (r && r.default_currency && r.default_currency !== frm.doc.company_currency) {
+				frm.set_value('company_currency', r.default_currency);
+				frm.refresh_field('company_currency');
+				
+				// Force refresh investors table with new currency
+				if (frm.doc.investors) {
+					frm.doc.investors.forEach(function(row) {
+						// Ensure currency display uses company currency
+						if (row.invested_amount) {
+							row.invested_amount_currency = r.default_currency;
+						}
+						if (row.eligible_dividend_amount) {
+							row.eligible_dividend_amount_currency = r.default_currency;
+						}
+					});
+					frm.refresh_field('investors');
+				}
+				
+				frappe.show_alert({
+					message: __('Currency updated to {0}', [r.default_currency]),
+					indicator: 'blue'
+				});
+			}
+		});
+	}
+}
 
 function set_project_filter(frm) {
 	// Filter projects by company
@@ -130,7 +277,13 @@ function fetch_project_investors(frm) {
 				
 				frm.refresh_field('investors');
 				
-				frappe.msgprint(__('Fetched {0} unprocessed investors for project {1}', [r.message.length, frm.doc.project]));
+				// Show success message with filtering details
+				frappe.msgprint({
+					title: __('Investors Fetched Successfully'),
+					message: __('Fetched {0} investors for:<br>• Project: {1}<br>• Company: {2}<br><br>All investors have been filtered to match the selected project and company.', 
+						[r.message.length, frm.doc.project, frm.doc.company]),
+					indicator: 'green'
+				});
 			} else {
 				frappe.msgprint(__('No unprocessed investors found for the selected project. All investors may have already been processed.'));
 			}

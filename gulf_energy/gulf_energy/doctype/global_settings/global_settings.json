@@ -5,26 +5,26 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "investor_dividend_expense",
-  "column_break_gicy"
+  "section_break_zfke",
+  "investor_dividend_details"
  ],
  "fields": [
   {
-   "fieldname": "investor_dividend_expense",
-   "fieldtype": "Link",
-   "label": "Investor Dividend Expense",
-   "options": "Account"
+   "fieldname": "section_break_zfke",
+   "fieldtype": "Section Break"
   },
   {
-   "fieldname": "column_break_gicy",
-   "fieldtype": "Column Break"
+   "fieldname": "investor_dividend_details",
+   "fieldtype": "Table",
+   "label": "Investor Dividend Details",
+   "options": "Global Settings List"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-08-16 14:03:11.399275",
+ "modified": "2025-08-22 14:44:14.529396",
  "modified_by": "Administrator",
  "module": "Gulf Energy",
  "name": "Global Settings",

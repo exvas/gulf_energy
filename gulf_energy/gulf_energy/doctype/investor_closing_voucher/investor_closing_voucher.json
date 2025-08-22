@@ -8,6 +8,7 @@
  "field_order": [
   "naming_series",
   "company",
+  "company_currency",
   "project",
   "project_name",
   "column_break_gfhy",
@@ -22,9 +23,10 @@
   "column_break_totals",
   "total_investors",
   "dividend_expense_account",
-  "section_break_journal",
-  "journal_entries",
-  "amended_from"
+  "amended_from",
+  "journal_entries_tab",
+  "section_break_journal_tab",
+  "journal_entries"
  ],
  "fields": [
   {
@@ -132,18 +134,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "section_break_journal",
-   "fieldtype": "Section Break",
-   "label": "Journal Entries"
-  },
-  {
-   "fieldname": "journal_entries",
-   "fieldtype": "Table",
-   "label": "Journal Entries",
-   "options": "Investor Closing Journal Entry",
-   "read_only": 1
-  },
-  {
    "fieldname": "amended_from",
    "fieldtype": "Link",
    "label": "Amended From",
@@ -151,12 +141,35 @@
    "options": "Investor Closing Voucher",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fetch_from": "company.default_currency",
+   "fieldname": "company_currency",
+   "fieldtype": "Data",
+   "label": "Company Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "journal_entries_tab",
+   "fieldtype": "Tab Break",
+   "label": "Journal Entries"
+  },
+  {
+   "fieldname": "section_break_journal_tab",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "journal_entries",
+   "fieldtype": "Table",
+   "label": "Journal Entries",
+   "options": "Investor Closing Journal Entry",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-19 10:44:37.848719",
+ "modified": "2025-08-22 18:53:16.330430",
  "modified_by": "Administrator",
  "module": "Gulf Energy",
  "name": "Investor Closing Voucher",

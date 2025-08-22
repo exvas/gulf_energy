@@ -51,6 +51,7 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Invested Amount",
+   "options": "parent.company_currency",
    "reqd": 1,
    "width": "120"
   },
@@ -75,6 +76,7 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Eligible Dividend Amount",
+   "options": "parent.company_currency",
    "reqd": 1,
    "width": "150"
   },
