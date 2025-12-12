@@ -56,6 +56,73 @@ def get_root_company(company):
 		return company
 
 
+def journal_entry_has_custom_investor_field():
+	"""Check if Journal Entry doctype has custom_investor field"""
+	try:
+		# Check if custom field exists
+		custom_field_exists = frappe.db.exists("Custom Field", {
+			"dt": "Journal Entry",
+			"fieldname": "custom_investor"
+		})
+		
+		if custom_field_exists:
+			return True
+		
+		# Also check if field exists in the doctype schema
+		# This is a more robust check but requires the doctype to be loaded
+		from frappe.model.meta import get_meta
+		meta = get_meta("Journal Entry")
+		return "custom_investor" in meta.get_fieldnames()
+		
+	except Exception:
+		# If any error occurs, assume field doesn't exist
+		return False
+
+
+@frappe.whitelist()
+def check_existing_investor_account(investor_name, invested_company, invested_project=None):
+	"""
+	Check if an investor account already exists for the given investor/company/project combination.
+	Called from client-side to show user whether account will be reused or created.
+	"""
+	if not investor_name or not invested_company:
+		return {"exists": False, "message": "Missing required parameters"}
+
+	# Get root company
+	root_company = get_root_company(invested_company)
+
+	# Get company abbreviation
+	company_abbr = frappe.get_cached_value("Company", invested_company, "abbr")
+	if not company_abbr:
+		company_abbr = invested_company[:3].upper()
+
+	# Build account name pattern
+	if invested_project:
+		account_name_pattern = f"{investor_name}-{invested_project}-{company_abbr}"
+	else:
+		account_name_pattern = f"{investor_name}-{company_abbr}"
+
+	# Check if account exists
+	existing_account = frappe.db.get_value("Account", {
+		"account_name": account_name_pattern,
+		"company": root_company,
+		"parent_account": ["like", "%Investor Capital%"]
+	}, "name")
+
+	if existing_account:
+		return {
+			"exists": True,
+			"account_name": existing_account,
+			"company": root_company
+		}
+	else:
+		return {
+			"exists": False,
+			"new_account_name": account_name_pattern,
+			"company": root_company
+		}
+
+
 class Investor(Document):
 	def validate(self):
 		self.validate_required_fields()
@@ -303,7 +370,7 @@ class Investor(Document):
 			amount, company_currency, company), indicator="green")
 		
 		# Create the journal entry
-		je_doc = frappe.get_doc({
+		je_dict = {
 			"doctype": "Journal Entry",
 			"company": company,
 			"posting_date": posting_date,
@@ -317,7 +384,8 @@ class Investor(Document):
 					"debit": amount,  # Base currency amount
 					"credit": 0,
 					"user_remark": f"Cash from {self.investor_name}",
-					"exchange_rate": 1  # Single currency
+					"exchange_rate": 1,  # Single currency
+					"project": self.invested_project  # Add project to account line
 				},
 				{
 					"account": investor_account,
@@ -326,570 +394,197 @@ class Investor(Document):
 					"debit": 0,
 					"credit": amount,  # Base currency amount
 					"user_remark": f"Investment by {self.investor_name}",
-					"exchange_rate": 1  # Single currency
+					"exchange_rate": 1,  # Single currency
+					"project": self.invested_project  # Add project to account line
 				}
 			]
-		})
+		}
 		
-		# Set totals explicitly
-		je_doc.total_debit = amount
-		je_doc.total_credit = amount
-		je_doc.difference = 0
+		# Set project if available
+		if self.invested_project:
+			je_dict["project"] = self.invested_project
+			frappe.msgprint(_("📋 Project set in JE: {0}").format(self.invested_project), indicator="blue")
 		
-		# Insert and submit
-		je_doc.flags.ignore_permissions = True
-		je_doc.insert()
-		
-		# Link to investor record
-		self.db_set("journal_entry", je_doc.name)
-		frappe.db.commit()
-		
-		# Submit the JE
-		je_doc.submit()
-		
-		frappe.msgprint(_("✅ JE created: {0} | Amount: {1} {2}").format(
-			je_doc.name, amount, company_currency), indicator="green")
-		
-		return je_doc.name
+		# Try to set custom_investor if the field exists in the doctype
+		has_custom_investor_field = journal_entry_has_custom_investor_field()
 
-	def ensure_account_currencies_match(self, bank_account, investor_account, target_currency):
-		"""Ensure both accounts use the target currency"""
-		try:
-			# Update account currencies to match target
-			frappe.db.set_value("Account", bank_account, "account_currency", target_currency)
-			frappe.db.set_value("Account", investor_account, "account_currency", target_currency)
-			frappe.db.commit()
-			
-			frappe.msgprint(_("🔧 Updated account currencies to {0}").format(target_currency), indicator="blue")
-			
-		except Exception as e:
-			frappe.log_error(f"Currency update failed: {str(e)}", "Currency Update Error")
+		if has_custom_investor_field:
+			je_dict["custom_investor"] = self.name
+			frappe.msgprint(_("📋 Custom Investor set in JE: {0}").format(self.name), indicator="blue")
+
+		je_doc = frappe.get_doc(je_dict)
+		je_doc.insert(ignore_permissions=True)
+		je_doc.submit()
+
+		# Link JE to Investor
+		self.db_set("journal_entry", je_doc.name)
+
+		return je_doc.name
 
 	def determine_je_company(self):
-		"""ENHANCED: Smart company determination with currency priority"""
-		# Get account companies
+		"""Determine which company to create the JE in"""
 		bank_account_company = frappe.get_value("Account", self.amount_received_account, "company")
-		investor_account_company = frappe.get_value("Account", self.investor_account, "company")
-		invested_company = self.invested_company
+
+		if bank_account_company == self.invested_company:
+			return self.invested_company, "SAME_COMPANY"
+
+		# Check if bank is in root company
 		root_company = get_root_company(self.invested_company)
-		
-		# Get currencies
-		invested_currency = frappe.get_cached_value("Company", invested_company, "default_currency")
-		
-		frappe.msgprint(_("🔍 Analysis:"), indicator="blue")
-		frappe.msgprint(_("Bank: {0} ({1})").format(self.amount_received_account, bank_account_company))
-		frappe.msgprint(_("Investor: {0} ({1})").format(self.investor_account, investor_account_company))
-		frappe.msgprint(_("Target Currency: {0}").format(invested_currency))
-		
-		# PRIORITY 1: Both accounts in invested company (PERFECT)
-		if bank_account_company == invested_company and investor_account_company == invested_company:
-			return invested_company, "SAME_COMPANY_PERFECT"
-		
-		# PRIORITY 2: Invested company for currency alignment
-		elif invested_company:
-			return invested_company, "CURRENCY_ALIGNED"
-		
-		# PRIORITY 3: Both accounts in same company
-		elif bank_account_company == investor_account_company:
-			return bank_account_company, "SAME_COMPANY"
-		
-		# PRIORITY 4: Bank account's company
-		elif bank_account_company:
-			return bank_account_company, "BANK_FOCUS"
-		
-		# FALLBACK: Root company
-		else:
-			return root_company, "ROOT_FALLBACK"
+		if bank_account_company == root_company:
+			return root_company, "ROOT_COMPANY"
 
-	def create_simple_je(self, company, amount, posting_date, company_currency):
-		"""FIXED: Create simple JE with exact amount from field"""
-		# Ensure account currencies match
-		self.ensure_account_currencies(company, company_currency)
-		
-		frappe.msgprint(_("💰 Creating JE with amount: {0}").format(amount), indicator="blue")
-		
-		je_doc = frappe.get_doc({
-			"doctype": "Journal Entry",
+		# Default to invested company
+		return self.invested_company, "INVESTED_COMPANY"
+
+	def find_equivalent_bank_account(self, company):
+		"""Find an equivalent bank/cash account in the specified company"""
+		# Try to find a similar account type
+		original_account = frappe.get_doc("Account", self.amount_received_account)
+
+		equivalent = frappe.db.get_value("Account", {
 			"company": company,
-			"posting_date": posting_date,
-			"user_remark": f"Auto-Investment by {self.investor_name} - {self.name}",
-			"multi_currency": 0,
-			"accounts": [
-				{
-					"account": self.amount_received_account,
-					"debit_in_account_currency": amount,  # EXACT amount from field
-					"credit_in_account_currency": 0,
-					"user_remark": f"Cash from {self.investor_name}"
-				},
-				{
-					"account": self.investor_account,
-					"debit_in_account_currency": 0,
-					"credit_in_account_currency": amount,  # EXACT amount from field
-					"user_remark": f"Investment by {self.investor_name}"
-				}
-			]
-		})
-		
-		je_doc.flags.ignore_permissions = True
-		je_doc.insert()
-		self.db_set("journal_entry", je_doc.name)
-		frappe.db.commit()
-		je_doc.submit()
-		
-		frappe.msgprint(_("✅ Simple JE created: {0} with amount {1}").format(je_doc.name, amount), indicator="green")
-		return je_doc.name
-
-	def create_cross_company_je_bank_focus(self, amount, posting_date):
-		"""FIXED: Cross-company JE with exact amount"""
-		bank_account_company = frappe.get_value("Account", self.amount_received_account, "company")
-		
-		# Find or create equivalent investor account in bank's company
-		equivalent_investor_account = self.find_or_create_equivalent_investor_account(bank_account_company)
-		
-		if equivalent_investor_account:
-			# Create simple JE with equivalent account
-			company_currency = frappe.get_cached_value("Company", bank_account_company, "default_currency")
-			self.ensure_account_currencies(bank_account_company, company_currency)
-			
-			frappe.msgprint(_("💰 Cross-company JE with amount: {0}").format(amount), indicator="blue")
-			
-			je_doc = frappe.get_doc({
-				"doctype": "Journal Entry",
-				"company": bank_account_company,
-				"posting_date": posting_date,
-				"user_remark": f"Auto-Investment by {self.investor_name} - {self.name}",
-				"multi_currency": 0,
-				"accounts": [
-					{
-						"account": self.amount_received_account,
-						"debit_in_account_currency": amount,  # EXACT amount from field
-						"credit_in_account_currency": 0,
-						"user_remark": f"Cash from {self.investor_name}"
-					},
-					{
-						"account": equivalent_investor_account,
-						"debit_in_account_currency": 0,
-						"credit_in_account_currency": amount,  # EXACT amount from field
-						"user_remark": f"Investment by {self.investor_name}"
-					}
-				]
-			})
-			
-			je_doc.flags.ignore_permissions = True
-			je_doc.insert()
-			self.db_set("journal_entry", je_doc.name)
-			frappe.db.commit()
-			je_doc.submit()
-			
-			frappe.msgprint(_("✅ Cross-company JE created: {0} with amount {1}").format(je_doc.name, amount), indicator="green")
-			return je_doc.name
-		
-		else:
-			frappe.msgprint(_("⚠️ Could not create equivalent account. Manual JE required."), indicator="orange")
-			return None
-
-	def create_cross_company_je_investor_focus(self, amount, posting_date):
-		"""FIXED: Investor focus JE with exact amount"""
-		investor_account_company = frappe.get_value("Account", self.investor_account, "company")
-		
-		# Find equivalent bank account in investor's company
-		equivalent_bank_account = self.find_equivalent_bank_account(investor_account_company)
-		
-		if equivalent_bank_account:
-			# Update the amount received account to the equivalent one
-			self.db_set("amount_received_account", equivalent_bank_account)
-			
-			company_currency = frappe.get_cached_value("Company", investor_account_company, "default_currency")
-			self.ensure_account_currencies(investor_account_company, company_currency)
-			
-			frappe.msgprint(_("💰 Investor focus JE with amount: {0}").format(amount), indicator="blue")
-			
-			je_doc = frappe.get_doc({
-				"doctype": "Journal Entry",
-				"company": investor_account_company,
-				"posting_date": posting_date,
-				"user_remark": f"Auto-Investment by {self.investor_name} - {self.name}",
-				"multi_currency": 0,
-				"accounts": [
-					{
-						"account": equivalent_bank_account,
-						"debit_in_account_currency": amount,  # EXACT amount from field
-						"credit_in_account_currency": 0,
-						"user_remark": f"Cash from {self.investor_name}"
-					},
-					{
-						"account": self.investor_account,
-						"debit_in_account_currency": 0,
-						"credit_in_account_currency": amount,  # EXACT amount from field
-						"user_remark": f"Investment by {self.investor_name}"
-					}
-				]
-			})
-			
-			je_doc.flags.ignore_permissions = True
-			je_doc.insert()
-			self.db_set("journal_entry", je_doc.name)
-			frappe.db.commit()
-			je_doc.submit()
-			
-			frappe.msgprint(_("✅ Switched bank and created JE: {0} with amount {1}").format(je_doc.name, amount), indicator="green")
-			frappe.msgprint(_("Bank account updated to: {0}").format(equivalent_bank_account), indicator="blue")
-			return je_doc.name
-		
-		else:
-			frappe.msgprint(_("⚠️ No compatible bank account found. Manual JE required."), indicator="orange")
-			return None
-
-	def find_or_create_equivalent_investor_account(self, target_company):
-		"""Find or create equivalent investor account in target company"""
-		try:
-			# Generate account name for target company
-			target_company_abbr = frappe.get_cached_value("Company", target_company, "abbr")
-			if not target_company_abbr:
-				target_company_abbr = target_company[:3].upper()
-			
-			if self.invested_project:
-				equivalent_name = f"{self.investor_name}-{self.invested_project}-{target_company_abbr}"
-			else:
-				equivalent_name = f"{self.investor_name}-{target_company_abbr}"
-			
-			# Check if equivalent account exists
-			existing_account = frappe.get_value("Account", {
-				"account_name": equivalent_name,
-				"company": target_company,
-				"parent_account": ["like", "%Investor Capital%"]
-			}, "name")
-			
-			if existing_account:
-				frappe.msgprint(_("Found equivalent account: {0}").format(existing_account), indicator="green")
-				return existing_account
-			
-			# Create equivalent account if it doesn't exist
-			parent_account = frappe.db.get_value("Account", 
-				{"account_name": "Investor Capital", "company": target_company, "is_group": 1}, "name")
-			
-			if not parent_account:
-				parent_account = self.create_investor_capital_account_if_missing(target_company)
-			
-			account_number = self.generate_unique_account_number(target_company)
-			company_currency = frappe.get_cached_value("Company", target_company, "default_currency")
-			
-			account_doc = frappe.get_doc({
-				"doctype": "Account",
-				"account_name": equivalent_name,
-				"account_number": account_number,
-				"parent_account": parent_account,
-				"company": target_company,
-				"account_type": "Equity",
-				"root_type": "Equity",
-				"is_group": 0,
-				"account_currency": company_currency,
-				"remarks": f"Equivalent investor account for {self.invested_company}"
-			})
-			
-			account_doc.insert(ignore_permissions=True)
-			frappe.msgprint(_("Created equivalent account: {0}").format(account_doc.name), indicator="green")
-			return account_doc.name
-			
-		except Exception as e:
-			frappe.log_error(f"Failed to create equivalent investor account: {str(e)}")
-			return None
-
-	def find_equivalent_bank_account(self, target_company):
-		"""Find suitable bank account in target company"""
-		try:
-			# Look for any bank account in target company
-			bank_accounts = frappe.get_all("Account", {
-				"company": target_company,
-				"account_type": ["in", ["Bank", "Cash"]],
-				"is_group": 0
-			}, ["name", "account_name"], limit=1)
-			
-			if bank_accounts:
-				equivalent_bank = bank_accounts[0].name
-				frappe.msgprint(_("Found equivalent bank: {0}").format(equivalent_bank), indicator="green")
-				return equivalent_bank
-			
-			return None
-			
-		except Exception as e:
-			frappe.log_error(f"Failed to find equivalent bank account: {str(e)}")
-			return None
-
-	def ensure_account_currencies(self, company, company_currency):
-		"""Ensure both accounts have matching currencies"""
-		try:
-			# Update bank account currency
-			frappe.db.set_value("Account", self.amount_received_account, "account_currency", company_currency)
-			
-			# Update investor account currency  
-			frappe.db.set_value("Account", self.investor_account, "account_currency", company_currency)
-			
-			frappe.db.commit()
-			
-		except Exception as e:
-			frappe.log_error(f"Currency update failed: {str(e)}", "Currency Update Error")
-
-	def create_investor_capital_account_if_missing(self, company):
-		"""Create Investor Capital structure"""
-		existing = frappe.db.get_value("Account", {
-			"account_name": "Investor Capital", 
-			"company": company, 
-			"is_group": 1
+			"account_type": original_account.account_type,
+			"is_group": 0
 		}, "name")
+
+		if equivalent:
+			return equivalent
+
+		# Fallback: find any cash account
+		cash_account = frappe.db.get_value("Account", {
+			"company": company,
+			"account_type": "Cash",
+			"is_group": 0
+		}, "name")
+
+		return cash_account
+
+	def find_or_create_equivalent_investor_account(self, company):
+		"""Find or create an equivalent investor account in the specified company"""
+		# Check if account already exists in target company
+		existing = frappe.db.get_value("Account", {
+			"account_name": ["like", f"%{self.investor_name}%"],
+			"company": company,
+			"parent_account": ["like", "%Investor Capital%"]
+		}, "name")
+
 		if existing:
 			return existing
-		
-		# Find equity parent
-		equity_parent = frappe.db.get_value("Account", {
-			"company": company, 
-			"root_type": "Equity", 
-			"is_group": 1, 
-			"parent_account": ["in", ["", None]]
+
+		# Create new account in target company
+		parent_account = frappe.db.get_value("Account", {
+			"account_name": "Investor Capital",
+			"company": company,
+			"is_group": 1
 		}, "name")
-		
-		if not equity_parent:
-			equity_accounts = frappe.get_all("Account", {
-				"company": company, 
-				"root_type": "Equity", 
-				"is_group": 1
-			}, ["name"], limit=1)
-			
-			if equity_accounts:
-				equity_parent = equity_accounts[0].name
-			else:
-				frappe.throw(_("No equity account found in {0}").format(company))
-		
-		# Get company currency and available account number
+
+		if not parent_account:
+			parent_account = self.create_investor_capital_account_if_missing(company)
+
 		company_currency = frappe.get_cached_value("Company", company, "default_currency")
-		existing_3110 = frappe.db.get_value("Account", {"account_number": "3110", "company": company}, "name")
-		account_number = "3111" if existing_3110 else "3110"
-		
-		# Create Investor Capital account
+		company_abbr = frappe.get_cached_value("Company", company, "abbr") or company[:3].upper()
+
+		account_name = f"{self.investor_name}-{self.invested_project}-{company_abbr}" if self.invested_project else f"{self.investor_name}-{company_abbr}"
+		account_number = self.generate_unique_account_number(company)
+
 		account_doc = frappe.get_doc({
 			"doctype": "Account",
-			"account_name": "Investor Capital",
+			"account_name": account_name,
 			"account_number": account_number,
-			"parent_account": equity_parent,
+			"parent_account": parent_account,
+			"company": company,
+			"account_type": "Equity",
+			"root_type": "Equity",
+			"is_group": 0,
+			"account_currency": company_currency
+		})
+
+		account_doc.insert(ignore_permissions=True)
+		return account_doc.name
+
+	def ensure_account_currencies_match(self, bank_account, investor_account, company_currency):
+		"""Ensure account currencies match company currency"""
+		bank_currency = frappe.get_value("Account", bank_account, "account_currency")
+		investor_currency = frappe.get_value("Account", investor_account, "account_currency")
+
+		if bank_currency and bank_currency != company_currency:
+			frappe.msgprint(_("⚠️ Bank account currency ({0}) differs from company currency ({1})").format(
+				bank_currency, company_currency), indicator="orange")
+
+		if investor_currency and investor_currency != company_currency:
+			frappe.msgprint(_("⚠️ Investor account currency ({0}) differs from company currency ({1})").format(
+				investor_currency, company_currency), indicator="orange")
+
+	def validate_company_account_structure(self):
+		"""Validate that the company has proper account structure"""
+		root_company = get_root_company(self.invested_company)
+
+		# Check if Investor Capital account exists
+		investor_capital = frappe.db.get_value("Account", {
+			"account_name": "Investor Capital",
+			"company": root_company,
+			"is_group": 1
+		}, "name")
+
+		if not investor_capital:
+			frappe.msgprint(_("Creating Investor Capital account structure for {0}").format(root_company), indicator="blue")
+			self.create_investor_capital_account_if_missing(root_company)
+
+	def create_investor_capital_account_if_missing(self, company):
+		"""Create Investor Capital parent account if missing"""
+		existing = frappe.db.get_value("Account", {
+			"account_name": "Investor Capital",
+			"company": company,
+			"is_group": 1
+		}, "name")
+
+		if existing:
+			return existing
+
+		# Find parent equity account
+		equity_accounts = frappe.get_all("Account", {
+			"company": company,
+			"root_type": "Equity",
+			"is_group": 1
+		}, ["name", "account_name"], order_by="lft")
+
+		if not equity_accounts:
+			frappe.throw(_("No equity accounts found for company {0}").format(company))
+
+		parent_equity = equity_accounts[0].name
+		company_currency = frappe.get_cached_value("Company", company, "default_currency")
+
+		investor_capital_doc = frappe.get_doc({
+			"doctype": "Account",
+			"account_name": "Investor Capital",
+			"account_number": "3110",
+			"parent_account": parent_equity,
 			"company": company,
 			"account_type": "Equity",
 			"root_type": "Equity",
 			"is_group": 1,
 			"account_currency": company_currency
 		})
-		
-		account_doc.insert(ignore_permissions=True)
-		return account_doc.name
+
+		investor_capital_doc.insert(ignore_permissions=True)
+		frappe.msgprint(_("✅ Created Investor Capital account: {0}").format(investor_capital_doc.name), indicator="green")
+
+		return investor_capital_doc.name
 
 	def generate_unique_account_number(self, company):
-		"""Generate unique account number"""
-		existing_accounts = frappe.get_all("Account", {
-			"company": company,
-			"parent_account": ["like", "%Investor Capital%"],
-			"account_number": ["like", "I30%"]
-		}, ["account_number"])
-		
-		used_numbers = set()
-		for account in existing_accounts:
-			if account.account_number and account.account_number.startswith("I30"):
-				try:
-					number = int(account.account_number[3:])
-					if 1 <= number <= 999:
-						used_numbers.add(number)
-				except ValueError:
-					continue
-		
-		for i in range(1, 1000):
-			if i not in used_numbers:
-				return f"I30{i:02d}"
-		
-		frappe.throw(_("All investor account numbers exhausted"))
+		"""Generate a unique account number for investor accounts"""
+		# Get max account number starting with I3 in the company
+		max_number = frappe.db.sql("""
+			SELECT MAX(CAST(SUBSTRING(account_number, 2) AS UNSIGNED))
+			FROM `tabAccount`
+			WHERE company = %s
+			AND account_number LIKE 'I3%%'
+		""", company)
 
-	def validate_company_account_structure(self):
-		"""Enhanced validation with dynamic root company detection"""
-		if not self.invested_company:
-			frappe.throw(_("Invested Company is required"))
-		
-		root_company = get_root_company(self.invested_company)
-		
-		if not frappe.db.exists("Company", self.invested_company):
-			frappe.throw(_("Invested Company {0} does not exist").format(self.invested_company))
-		if not frappe.db.exists("Company", root_company):
-			frappe.throw(_("Root Company {0} does not exist").format(root_company))
-
-	@frappe.whitelist()
-	def create_manual_journal_entry(self):
-		"""Manual JE creation (fallback)"""
-		if self.docstatus != 1:
-			frappe.throw(_("Document must be submitted"))
-		if self.journal_entry:
-			frappe.throw(_("Journal entry already exists"))
-		
-		root_company = get_root_company(self.invested_company)
-		
-		return {
-			"success": True,
-			"message": "Create journal entry manually",
-			"data": {
-				"company": root_company,
-				"invested_company": self.invested_company,
-				"amount": self.invested_amount_company_currency,
-				"bank_account": self.amount_received_account,
-				"investor_account": self.investor_account
-			}
-		}
-
-	@frappe.whitelist()
-	def preview_account_structure(self):
-		if not self.invested_company or not self.investor_name:
-			return {"error": "Company and Investor Name required"}
-		
-		root_company = get_root_company(self.invested_company)
-		
-		existing = self.find_existing_investor_account(root_company)
-		if existing:
-			return {
-				"action": "reuse", 
-				"account_name": existing, 
-				"root_company": root_company,
-				"invested_company": self.invested_company,
-				"message": f"Will reuse: {existing}"
-			}
-		
-		account_name = self.generate_unique_account_name_with_abbr()
-		account_number = self.generate_unique_account_number(root_company)
-		
-		return {
-			"action": "create",
-			"account_name": account_name,
-			"account_number": account_number,
-			"root_company": root_company,
-			"invested_company": self.invested_company,
-			"message": f"Will create: {account_number} - {account_name} in root company {root_company}"
-		}
-
-	@frappe.whitelist()
-	def fix_account_structure(self):
-		if not self.invested_company:
-			return {"error": "Company required"}
-		
-		try:
-			root_company = get_root_company(self.invested_company)
-			
-			existing = frappe.db.get_value("Account", {
-				"account_name": "Investor Capital", 
-				"company": root_company, 
-				"is_group": 1
-			}, "name")
-			
-			if existing:
-				return {"success": True, "message": f"Already exists in {root_company}", "account": existing}
-			
-			result = self.create_investor_capital_account_if_missing(root_company)
-			return {"success": True, "message": f"Created in {root_company}", "account": result}
-		except Exception as e:
-			return {"success": False, "error": str(e)}
-
-# UTILITY FUNCTIONS
-@frappe.whitelist()
-def check_existing_investor_account(investor_name, invested_company, invested_project=None):
-	try:
-		root_company = get_root_company(invested_company)
-		
-		# Get company abbreviation
-		company_abbr = frappe.get_cached_value("Company", invested_company, "abbr")
-		if not company_abbr:
-			company_abbr = invested_company[:3].upper()
-		
-		# Build search pattern with abbreviation
-		if invested_project:
-			account_name_pattern = f"{investor_name}-{invested_project}-{company_abbr}"
+		if max_number and max_number[0][0]:
+			next_number = int(max_number[0][0]) + 1
 		else:
-			account_name_pattern = f"{investor_name}-{company_abbr}"
-		
-		existing = frappe.get_value("Account", {
-			"account_name": account_name_pattern,
-			"company": root_company,
-			"parent_account": ["like", "%Investor Capital%"]
-		}, "name")
-		
-		if existing:
-			return {
-				"exists": True, 
-				"account_name": existing, 
-				"company": root_company,
-				"invested_company": invested_company
-			}
-		else:
-			return {
-				"exists": False, 
-				"new_account_name": account_name_pattern, 
-				"company": root_company,
-				"invested_company": invested_company
-			}
-	except Exception as e:
-		return {"error": str(e)}
+			next_number = 3001
 
-@frappe.whitelist()
-def get_company_structure_info(company):
-	if not company or not frappe.db.exists("Company", company):
-		return {"error": "Invalid company"}
+		return f"I{next_number}"
 	
-	try:
-		root_company = get_root_company(company)
-		is_root = (company == root_company)
-		
-		has_investor_capital = bool(frappe.db.get_value("Account", {
-			"account_name": "Investor Capital", 
-			"company": root_company, 
-			"is_group": 1
-		}, "name"))
-		
-		return {
-			"company": company,
-			"root_company": root_company,
-			"is_root": is_root,
-			"has_investor_capital": has_investor_capital
-		}
-	except Exception as e:
-		return {"error": str(e)}
-
-@frappe.whitelist()
-def debug_company_hierarchy(company):
-	"""Debug function to trace company hierarchy"""
-	try:
-		if not company:
-			return {"error": "Company required"}
-		
-		hierarchy = []
-		current = company
-		
-		while current:
-			company_info = frappe.get_cached_value("Company", current, ["company_name", "is_group", "parent_company"])
-			if not company_info:
-				break
-				
-			hierarchy.append({
-				"company": current,
-				"name": company_info[0] if company_info else current,
-				"is_group": bool(company_info[1]) if len(company_info) > 1 else False,
-				"parent": company_info[2] if len(company_info) > 2 else None
-			})
-			
-			current = company_info[2] if len(company_info) > 2 else None
-			
-			if len(hierarchy) > 10:  # Safety check
-				break
-		
-		root_company = get_root_company(company)
-		
-		return {
-			"success": True,
-			"input_company": company,
-			"root_company": root_company,
-			"hierarchy": hierarchy,
-			"depth": len(hierarchy)
-		}
-		
-	except Exception as e:
-		return {"error": str(e)}

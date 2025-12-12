@@ -137,13 +137,22 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Sales Invoice": {
+		"validate": "gulf_energy.utils.validate_mandatory_project"
+	},
+	"Purchase Invoice": {
+		"validate": "gulf_energy.utils.validate_mandatory_project"
+	},
+	"Payment Entry": {
+		"validate": "gulf_energy.utils.validate_mandatory_project"
+	},
+	"Journal Entry": {
+		"validate": "gulf_energy.utils.validate_mandatory_project",
+		"before_save": "gulf_energy.utils.fetch_project_from_investor",
+		"on_update": "gulf_energy.utils.fetch_project_from_investor"
+	}
+}
 
 # Scheduled Tasks
 # ---------------

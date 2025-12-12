@@ -4,3 +4,4 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+gulf_energy.patches.add_custom_investor_field_to_je
