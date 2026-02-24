@@ -43,7 +43,7 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {"Item": "public/js/item.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -151,29 +151,20 @@ doc_events = {
 		"validate": "gulf_energy.utils.validate_mandatory_project",
 		"before_save": "gulf_energy.utils.fetch_project_from_investor",
 		"on_update": "gulf_energy.utils.fetch_project_from_investor"
-	}
+	},
+	"Item": {
+		"validate": "gulf_energy.shipping_compliance.validate_item_msds_compliance"
+	},
 }
 
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"gulf_energy.tasks.all"
-# 	],
-# 	"daily": [
-# 		"gulf_energy.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"gulf_energy.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"gulf_energy.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"gulf_energy.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		"gulf_energy.gulf_energy.doctype.msds_register.msds_register.expire_msds_records"
+	],
+}
 
 # Testing
 # -------

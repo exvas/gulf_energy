@@ -1,0 +1,382 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-02-24 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "details_tab",
+  "naming_series",
+  "company",
+  "shipment_type",
+  "posting_date",
+  "column_break_details",
+  "sales_order",
+  "delivery_note",
+  "project",
+  "status",
+  "amended_from",
+  "bl_section",
+  "bl_number",
+  "bl_type",
+  "shipping_line",
+  "vessel_name",
+  "voyage_no",
+  "column_break_bl",
+  "port_of_loading",
+  "port_of_discharge",
+  "etd",
+  "eta",
+  "country_section",
+  "country_of_origin",
+  "country_of_destination",
+  "column_break_country",
+  "country_of_flag",
+  "export_control_section",
+  "iec_number",
+  "export_license_no",
+  "column_break_export",
+  "ex_code",
+  "containers_tab",
+  "containers",
+  "container_summary_section",
+  "total_containers",
+  "column_break_summary",
+  "total_gross_weight",
+  "total_net_weight",
+  "documents_tab",
+  "shipping_documents",
+  "compliance_tab",
+  "compliance_checklist",
+  "compliance_status_section",
+  "compliance_status",
+  "remarks_tab",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "ESC-.YYYY.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "shipment_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Shipment Type",
+   "options": "\nSea\nAir\nLand",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Sales Order",
+   "options": "Sales Order"
+  },
+  {
+   "fieldname": "delivery_note",
+   "fieldtype": "Link",
+   "label": "Delivery Note",
+   "options": "Delivery Note"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nPending Review\nApproved\nSubmitted\nClosed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Export Shipment Compliance",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "bl_section",
+   "fieldtype": "Section Break",
+   "label": "Bill of Lading / Shipping Details"
+  },
+  {
+   "fieldname": "bl_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "B/L Number"
+  },
+  {
+   "fieldname": "bl_type",
+   "fieldtype": "Select",
+   "label": "B/L Type",
+   "options": "\nOriginal\nTelex Release\nSea Waybill\nExpress"
+  },
+  {
+   "fieldname": "shipping_line",
+   "fieldtype": "Data",
+   "label": "Shipping Line"
+  },
+  {
+   "fieldname": "vessel_name",
+   "fieldtype": "Data",
+   "label": "Vessel Name"
+  },
+  {
+   "fieldname": "voyage_no",
+   "fieldtype": "Data",
+   "label": "Voyage No"
+  },
+  {
+   "fieldname": "column_break_bl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "port_of_loading",
+   "fieldtype": "Data",
+   "label": "Port of Loading"
+  },
+  {
+   "fieldname": "port_of_discharge",
+   "fieldtype": "Data",
+   "label": "Port of Discharge"
+  },
+  {
+   "fieldname": "etd",
+   "fieldtype": "Date",
+   "label": "ETD (Estimated Departure)"
+  },
+  {
+   "fieldname": "eta",
+   "fieldtype": "Date",
+   "label": "ETA (Estimated Arrival)"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "country_section",
+   "fieldtype": "Section Break",
+   "label": "Country & Origin"
+  },
+  {
+   "fieldname": "country_of_origin",
+   "fieldtype": "Link",
+   "label": "Country of Origin",
+   "options": "Country"
+  },
+  {
+   "fieldname": "country_of_destination",
+   "fieldtype": "Link",
+   "label": "Country of Destination",
+   "options": "Country"
+  },
+  {
+   "fieldname": "column_break_country",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Vessel flag state",
+   "fieldname": "country_of_flag",
+   "fieldtype": "Link",
+   "label": "Country of Flag",
+   "options": "Country"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "export_control_section",
+   "fieldtype": "Section Break",
+   "label": "Export Control"
+  },
+  {
+   "description": "Import-Export Code",
+   "fieldname": "iec_number",
+   "fieldtype": "Data",
+   "label": "IEC Number"
+  },
+  {
+   "fieldname": "export_license_no",
+   "fieldtype": "Data",
+   "label": "Export License No"
+  },
+  {
+   "fieldname": "column_break_export",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "DGFT/Export control classification code",
+   "fieldname": "ex_code",
+   "fieldtype": "Data",
+   "label": "EX Code"
+  },
+  {
+   "fieldname": "containers_tab",
+   "fieldtype": "Tab Break",
+   "label": "Containers"
+  },
+  {
+   "fieldname": "containers",
+   "fieldtype": "Table",
+   "label": "Containers",
+   "options": "Shipment Container"
+  },
+  {
+   "fieldname": "container_summary_section",
+   "fieldtype": "Section Break",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "total_containers",
+   "fieldtype": "Int",
+   "label": "Total Containers",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_gross_weight",
+   "fieldtype": "Float",
+   "label": "Total Gross Weight (KG)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_net_weight",
+   "fieldtype": "Float",
+   "label": "Total Net Weight (KG)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "documents_tab",
+   "fieldtype": "Tab Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "shipping_documents",
+   "fieldtype": "Table",
+   "label": "Shipping Documents",
+   "options": "Shipping Document"
+  },
+  {
+   "fieldname": "compliance_tab",
+   "fieldtype": "Tab Break",
+   "label": "Compliance"
+  },
+  {
+   "fieldname": "compliance_checklist",
+   "fieldtype": "Table",
+   "label": "Compliance Checklist",
+   "options": "Compliance Checklist Item"
+  },
+  {
+   "fieldname": "compliance_status_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "compliance_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Compliance Status",
+   "options": "Pending\nPartial\nComplete",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks_tab",
+   "fieldtype": "Tab Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-02-24 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gulf Energy",
+ "name": "Export Shipment Compliance",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
