@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"UQvsOxtKUj\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">My Workspace</span>\",\"col\":12}},{\"id\":\"qh9aYYiOTs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Investor\",\"col\":3}},{\"id\":\"yU6XTr4Or2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Investor Closing Voucher\",\"col\":3}},{\"id\":\"jPYh-QRuZd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"AbmbUnfeo1\",\"type\":\"card\",\"data\":{\"card_name\":\"Master\",\"col\":4}}]",
+ "content": "[{\"id\":\"UQvsOxtKUj\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">My Workspace</span>\",\"col\":12}},{\"id\":\"qh9aYYiOTs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Investor\",\"col\":3}},{\"id\":\"yU6XTr4Or2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Investor Closing Voucher\",\"col\":3}},{\"id\":\"sc_esc_001\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Export Shipment Compliance\",\"col\":3}},{\"id\":\"sc_msds_001\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"MSDS Register\",\"col\":3}},{\"id\":\"jPYh-QRuZd\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"AbmbUnfeo1\",\"type\":\"card\",\"data\":{\"card_name\":\"Master\",\"col\":4}},{\"id\":\"card_shipping\",\"type\":\"card\",\"data\":{\"card_name\":\"Shipping Compliance\",\"col\":4}},{\"id\":\"card_reports\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}}]",
  "creation": "2025-12-11 18:33:42.084575",
  "custom_blocks": [],
  "docstatus": 0,
@@ -41,9 +41,97 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Shipping Compliance",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Export Shipment Compliance",
+   "link_count": 0,
+   "link_to": "Export Shipment Compliance",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "MSDS Register",
+   "link_count": 0,
+   "link_to": "MSDS Register",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Customs Tariff Number",
+   "link_count": 0,
+   "link_to": "Customs Tariff Number",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 4,
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Export Compliance Summary",
+   "link_count": 0,
+   "link_to": "Export Compliance Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "MSDS Expiry Report",
+   "link_count": 0,
+   "link_to": "MSDS Expiry Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Investor Summary",
+   "link_count": 0,
+   "link_to": "Investor Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Project Investment Summary",
+   "link_count": 0,
+   "link_to": "Project Investment Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2025-12-11 18:36:04.643851",
+ "modified": "2026-02-24 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gulf Energy",
  "name": "My Workspace",
@@ -68,6 +156,22 @@
    "doc_view": "List",
    "label": "Investor Closing Voucher",
    "link_to": "Investor Closing Voucher",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Export Shipment Compliance",
+   "link_to": "Export Shipment Compliance",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "MSDS Register",
+   "link_to": "MSDS Register",
    "stats_filter": "[]",
    "type": "DocType"
   }

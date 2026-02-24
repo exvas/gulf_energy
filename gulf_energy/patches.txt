@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 gulf_energy.patches.add_custom_investor_field_to_je
 gulf_energy.patches.add_shipping_compliance_custom_fields
+gulf_energy.patches.setup_export_compliance_workflow
